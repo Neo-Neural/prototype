@@ -11,10 +11,14 @@ find_package(fmt)
 add_subdirectory(ext/spdlog)
 find_package(spdlog)
 
+add_subdirectory(ext/json)
+find_package(json)
+
 add_executable(prototype main.cpp)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ext/fmt/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ext/spdlog/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ext/json/include)
 
 
 target_link_libraries(
