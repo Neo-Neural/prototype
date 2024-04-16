@@ -6,13 +6,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_subdirectory(ext/fmt)
-find_package(fmt)
-
 add_subdirectory(ext/spdlog)
-find_package(spdlog)
-
 add_subdirectory(ext/json)
-find_package(json)
 
 add_executable(prototype main.cpp)
 
