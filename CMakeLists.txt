@@ -16,10 +16,13 @@ find_package(json)
 
 add_executable(prototype main.cpp)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ext/fmt/include)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ext/spdlog/include)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ext/json/include)
+include_directories(ext/fmt/include)
+include_directories(ext/spdlog/include)
+include_directories(ext/json/include)
+include_directories(include)
 
+file(GLOB_RECURSE SOURCES src/*.cpp)
+target_sources(prototype PRIVATE ${SOURCES})
 
 target_link_libraries(
   prototype

@@ -1,16 +1,10 @@
 #include <fmt/color.h>
-#include "spdlog/spdlog.h"
+#include <spdlog/spdlog.h>
 #include <nlohmann/json.hpp>
-
+#include "data.h"
 
 int main() {
-    fmt::print(fg(fmt::color::crimson) | fmt::emphasis::bold, "Hello, {}!\n", "fmt");
-
-    spdlog::info("Hello, spdlog");
-
-    nlohmann::json a = {
-        { "key", "value" }
-    };
+    Data data = Data();
     
     return 0;
 }
