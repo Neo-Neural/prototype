@@ -15,6 +15,7 @@ add_executable(prototype main.cpp)
 include_directories(ext/fmt/include)
 include_directories(ext/spdlog/include)
 include_directories(ext/json/include)
+include_directories(ext/armadillo/include)
 include_directories(include)
 
 file(GLOB_RECURSE SOURCES src/*.cpp)
