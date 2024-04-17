@@ -31,7 +31,7 @@ int ClassifierData::dimension_classifier(double x, double y) {
         case 2: return 1;
         case 3: return 0;
     }
-    return 1919810;
+    return 1919810; // to make the compiler happy
 }
 
 
