@@ -3,5 +3,5 @@
 class Data {
 public:
     Data();
-    // virtual Data &batch();
+    virtual Data &batch();
 };

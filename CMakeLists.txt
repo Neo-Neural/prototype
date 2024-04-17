@@ -8,6 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_subdirectory(ext/fmt)
 add_subdirectory(ext/spdlog)
 add_subdirectory(ext/json)
+add_subdirectory(ext/armadillo)
 
 add_executable(prototype main.cpp)
 
