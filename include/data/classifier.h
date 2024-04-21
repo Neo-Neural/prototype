@@ -8,7 +8,9 @@ class ClassifierData: public Data {
 /**
  *  2d-classification task
  *  input dimension: 2
- *  output dimension: 2
+ *  input range: [-1, 1]
+ *  output dimension: 2 except dimension_classifier(4)
+ *  output range: [-1, 1]
  *  data type: double
  */
 public:
