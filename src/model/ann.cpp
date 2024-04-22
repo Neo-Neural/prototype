@@ -31,6 +31,8 @@ double ANN::single_test(const TestPoint &test_point) {
         z.transform(Activation::tanh);
     }
     z = this->weights[this->layers_num] * z - test_point.answer;
+    z.transform(Activation::tanh);
+
     double loss = 0.0;
     z.for_each([&loss](double x) {
         loss += x * x;
