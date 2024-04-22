@@ -1,6 +1,8 @@
 #include "model/ann.h"
 
 #include "util/activation.h"
+
+#include <random>
 using namespace Activation;
 
 ANN::ANN(const int input_dim, const std::vector<int> &layers, const int output_dim) {
@@ -14,12 +16,17 @@ ANN::ANN(const int input_dim, const std::vector<int> &layers, const int output_d
     }
 
     // Init weights
+    std::random_device rd;
+    std::mt19937 gen(rd());
     for (auto i = 0; i <= layers_num; i++) {
-        arma::mat weight(
-            i == layers_num ? output_dim : layers[i],
-            i == 0 ? input_dim : layers[i - 1],
-            arma::fill::randu
-        );
+        int fout = i == layers_num ? output_dim : layers[i];
+        int fin = i == 0 ? input_dim : layers[i - 1];
+        std::normal_distribution<> dis(0.0, sqrt(2.0 / (fin + fout)));
+        arma::mat weight(fout, fin);
+        weight.transform([&](double x) {
+            return dis(gen);
+        });
+
         this->weights.push_back(weight);
     }
 }
