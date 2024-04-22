@@ -1,9 +1,10 @@
 #include "model/ann.h"
 
+#include "data/data.h"
 #include "util/activation.h"
 
 #include <random>
-using namespace Activation;
+#include <vector>
 
 ANN::ANN(const int input_dim, const std::vector<int> &layers, const int output_dim) {
     this->layers_num = layers.size();
@@ -44,11 +45,68 @@ double ANN::single_test(const TestPoint &test_point) {
     z.for_each([&loss](double x) {
         loss += x * x;
     });
-    return loss;
+    return loss / 2.0;
 }
 
-void ANN::train(const Data &data) {
-    
+double ANN::train(Data &data, int batch_size) {
+    double loss = 0.0;
+
+    std::vector<TestPoint> tps;
+    data.batch(batch_size, tps);
+
+    for (auto test_point: tps) {
+        std::vector<arma::vec> z;
+        std::vector<arma::vec> a;
+
+        // forward propagation
+        arma::vec current = test_point.input;
+        a.push_back(current);
+        for (auto i = 0; i < this->layers_num; i++) {
+            current = this->weights[i] * current + this->biases[i];
+            z.push_back(current);
+            current.transform(Activation::tanh);
+            a.push_back(current);
+        }
+        current = this->weights[this->layers_num] * current;
+        z.push_back(current);
+        current.transform(Activation::tanh);
+        a.push_back(current);
+
+        // back propagation
+        std::vector<arma::vec> delta; // delta[0] meaning the delta of the last layer
+
+        arma::vec activated_zl = z[z.size() - 1].transform(ActivationDifferential::tanh);
+        delta.push_back((a[a.size() - 1] - test_point.answer) % activated_zl);
+
+        for (auto i = this->layers_num - 1; i >= 0; i--) {
+            activated_zl = z[i].transform(ActivationDifferential::tanh);
+            delta.push_back((this->weights[i + 1].t() * delta[delta.size() - 1]) % activated_zl);
+        }
+
+        // update biases
+        for (auto i = 0; i < this->layers_num; i ++) {
+            this->biases[i] -= this->alpha * delta[this->layers_num - i];
+        }
+
+        // update weights
+        for (auto i = 0; i < this->layers_num; i ++) {
+            weights[i] -= this->alpha * delta[this->layers_num - i] * a[i].t();
+        }
+
+        double current_loss = 0.0;
+        arma::vec error = a[a.size() - 1] - test_point.answer;
+        error.for_each([&current_loss](double x) {
+            current_loss += x * x;
+        });
+
+        current_loss /= 2.0;
+
+        loss += current_loss;
+
+        printf("CurrentLoss: %f\n", current_loss);
+    }
+
+    return loss;
 }
 
 void ANN::save(const std::string &path) {

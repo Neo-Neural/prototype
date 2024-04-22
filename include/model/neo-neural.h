@@ -6,7 +6,7 @@ class NeoNeural: public Model {
 public: 
     NeoNeural();
     double single_test(const TestPoint &test_point); // return the loss
-    void train(const Data &data);
+    double train(Data &data, int batch_size);
 
     void save(const std::string &path);
     void load(const std::string &path);

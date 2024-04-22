@@ -6,7 +6,7 @@ int main() {
 
     std::vector<int> hidden = {5, 3, 6};
     ANN model(2, hidden, 2);
-
+    model.train(data, 1000);
     printf("%f", model.batch_test(data, 20));
     return 0;
 }
