@@ -6,7 +6,8 @@ class Model {
 public:
     Model();
     
-    virtual double test(const Data &data); // return the loss
+    double batch_test(Data &data, const int batch_size);
+    virtual double single_test(const TestPoint &test_point); // return the loss
     virtual void train(const Data &data);
 
     virtual void save(const std::string &path);

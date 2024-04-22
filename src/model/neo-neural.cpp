@@ -4,7 +4,7 @@ NeoNeural::NeoNeural() {
 
 }
 
-double NeoNeural::test(const Data &data) {
+double NeoNeural::single_test(const TestPoint &test_point) {
     return 114514.1919810;
 }
 
