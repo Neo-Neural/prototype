@@ -27,10 +27,10 @@ ANN::ANN(const int input_dim, const std::vector<int> &layers, const int output_d
 double ANN::single_test(const TestPoint &test_point) {
     arma::vec z(test_point.input);
     for (auto i = 0; i < this->layers_num; i ++) {
-        z = z * this->weights[i] + this->biases[i];
+        z = this->weights[i] * z + this->biases[i];
         z.transform(Activation::tanh);
     }
-    z = z * this->weights[this->layers_num] - test_point.answer;
+    z = this->weights[this->layers_num] * z - test_point.answer;
     double loss = 0.0;
     z.for_each([&loss](double x) {
         loss += x * x;
