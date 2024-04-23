@@ -8,8 +8,7 @@
 ClassifierData::ClassifierData(
     ClassificationFunction classifier,
     int output_dim = 2
-): classifier(classifier), output_dim(output_dim),
-    datasize(0), dataptr(0) {
+): classifier(classifier), output_dim(output_dim), datasize(0), dataptr(0) {
     srand(this->seed);
 }
 
@@ -45,7 +44,6 @@ int ClassifierData::batch(int batch_size, std::vector<TestPoint>& data) {
     else dataptr = 0;
     return dataptr;
 }
-
 
 void ClassifierData::generateData(int size) {
     datasize = size;
