@@ -11,5 +11,5 @@ struct TestPoint {
 class Data {
 public:
     Data();
-    virtual void batch(int batch_size, std::vector<TestPoint>& data) {}
+    virtual int batch(int batch_size, std::vector<TestPoint>& data) = 0;//return the dataptr for batch
 };
