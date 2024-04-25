@@ -32,7 +32,9 @@ ANN::ANN(const int input_dim, const std::vector<int>& layers, const int output_d
     }
 }
 
-double ANN::single_test(const TestPoint& test_point) {
+ANN::~ANN() {}
+
+double ANN::single_test(const TestPoint test_point) {
     arma::vec z(test_point.input);
     for (auto i = 0; i < this->layers_num; i++) {
         z = this->weights[i] * z + this->biases[i];
@@ -47,6 +49,42 @@ double ANN::single_test(const TestPoint& test_point) {
         loss += x * x;
         });
     return loss / 2.0;
+}
+
+double ANN::train(const std::vector<TestPoint> &tps) {
+    double total_loss = 0.0;
+
+    for (TestPoint test_point : tps) {
+        // z: before activation
+        // a: after activation
+        std::vector<arma::vec> z;
+        std::vector<arma::vec> a;
+
+        // forward propagation
+        forward_propagation(z, a, test_point);
+
+        // calculate loss
+        double current_loss = 0.0;
+        arma::vec error = a[a.size() - 1] - test_point.answer;
+        error.for_each([&current_loss](double x) {
+            current_loss += x * x;
+            });
+        current_loss /= 2.0;
+
+        // back propagation
+        back_propagation(z, a, test_point);
+        total_loss += current_loss;
+    }
+
+    return total_loss / tps.size();
+}
+
+void ANN::save(const std::string& path) {
+
+}
+
+void ANN::load(const std::string& path) {
+
 }
 
 void ANN::forward_propagation(std::vector<arma::vec>& z, std::vector<arma::vec>& a, const TestPoint& test_point) {
@@ -68,7 +106,7 @@ void ANN::back_propagation(std::vector<arma::vec>& z, std::vector<arma::vec>& a,
     std::vector<arma::vec> delta; // delta[0] meaning the delta of the last layer
 
     arma::vec activated_zl = z[z.size() - 1].transform(ActivationDifferential::tanh);
-    delta.push_back((a[a.size() - 1] - test_point.answer) % activated_zl);//% element-wise multiplication
+    delta.push_back((a[a.size() - 1] - test_point.answer) % activated_zl); // % element-wise multiplication
 
     for (auto i = this->layers_num - 1; i >= 0; i--) {
         activated_zl = z[i].transform(ActivationDifferential::tanh);
@@ -84,59 +122,4 @@ void ANN::back_propagation(std::vector<arma::vec>& z, std::vector<arma::vec>& a,
     for (auto i = 0; i < this->layers_num; i++) {
         weights[i] -= this->alpha * delta[this->layers_num - i] * a[i].t();
     }
-}
-
-double ANN::train(Data& data, int epoch, int batch_size) {
-    double minloss = 100.0; // a big enough value
-
-    std::vector<TestPoint> tps;
-    for (int i = 1; i <= epoch; i++) {
-        double loss = 0.0;
-        int batch_i = 0;
-
-        while (data.batch(batch_size, tps)) {
-            double batch_loss = 0.0;
-            batch_i ++;
-
-            for (TestPoint test_point : tps) {
-                // z: before activation
-                // a: after activation
-                std::vector<arma::vec> z;
-                std::vector<arma::vec> a;
-
-                // forward propagation
-                forward_propagation(z, a, test_point);
-
-                //calculate loss
-                double current_loss = 0.0;
-                arma::vec error = a[a.size() - 1] - test_point.answer;
-                error.for_each([&current_loss](double x) {
-                    current_loss += x * x;
-                    });
-                current_loss /= 2.0;
-
-                // back propagation
-                back_propagation(z, a, test_point);
-
-                batch_loss += current_loss;
-            }
-            batch_loss /= batch_size;
-
-            // later update params from it
-            loss += batch_loss;
-        }
-        loss /= batch_i;
-        printf("Epoch: %4d    Loss: %f\n", i, loss);
-        minloss = std::min(minloss, loss);
-    }
-
-    return minloss;
-}
-
-void ANN::save(const std::string& path) {
-
-}
-
-void ANN::load(const std::string& path) {
-
 }

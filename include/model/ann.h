@@ -6,9 +6,10 @@ class ANN: public Model {
 
 public:
     ANN(const int input_dim, const std::vector<int> &layers, const int output_dim);
-    
-    double single_test(const TestPoint &test_point);
-    double train(Data& data, int epoch, int batch_size = 1);
+    ~ANN();
+
+    double single_test(const TestPoint test_point);
+    double train(const std::vector<TestPoint> &tps);
 
     void save(const std::string &path);
     void load(const std::string &path);
@@ -21,7 +22,8 @@ private:
 
     const double alpha = 0.001; // learning rate
 
-    //z before activation;a after
+    // z: before activation
+    // a: after activation
     void forward_propagation(std::vector<arma::vec>& z, std::vector<arma::vec>& a, const TestPoint& test_point);
     void back_propagation(std::vector<arma::vec>& z, std::vector<arma::vec>& a, const TestPoint& test_point);
 

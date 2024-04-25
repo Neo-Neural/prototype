@@ -15,9 +15,7 @@ class ClassifierData: public Data {
  */
 public:
     ClassifierData(ClassificationFunction classifier, int output_dim);
-    int batch(int batch_size, std::vector<TestPoint>& data);
-    void generateData(int size);
-    void reset_dataptr() { dataptr = 0; }
+    bool batch(int batch_size, std::vector<TestPoint>& data) override;
 
     // common classifiers
     static int circle_classifier(double x, double y);
@@ -31,6 +29,4 @@ private:
     
     int output_dim;
     ClassificationFunction classifier;
-    std::vector<TestPoint>innerdata;
-    int datasize, dataptr;
 };

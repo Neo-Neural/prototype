@@ -8,7 +8,7 @@
 ClassifierData::ClassifierData(
     ClassificationFunction classifier,
     int output_dim = 2
-): classifier(classifier), output_dim(output_dim), datasize(0), dataptr(0) {
+): classifier(classifier), output_dim(output_dim) {
     srand(this->seed);
 }
 
@@ -34,21 +34,9 @@ int ClassifierData::dimension_classifier(double x, double y) {
     return 1919810; // to make the compiler happy
 }
 
-
-int ClassifierData::batch(int batch_size, std::vector<TestPoint>& data) {
+bool ClassifierData::batch(int batch_size, std::vector<TestPoint>& data) {
     data.clear();
-    batch_size += dataptr;
-    if (batch_size < datasize)
-        for (; dataptr < batch_size; dataptr++)
-            data.push_back(innerdata[dataptr]);
-    else dataptr = 0;
-    return dataptr;
-}
-
-void ClassifierData::generateData(int size) {
-    datasize = size;
-    dataptr = 0;
-    for (auto i = 0; i < size; i++) {
+    for (auto i = 0; i < batch_size; i++) {
         double x = rand() * 2.0 / RAND_MAX - 1;
         double y = rand() * 2.0 / RAND_MAX - 1;
         TestPoint tp;
@@ -57,6 +45,7 @@ void ClassifierData::generateData(int size) {
         tp.answer = arma::vec(this->output_dim);
         tp.answer.fill(-1.0);
         tp.answer[result] = 1.0;
-        innerdata.push_back(tp);
+        data.push_back(tp);
     }
+    return true;
 }
