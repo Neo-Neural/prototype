@@ -5,6 +5,11 @@
 
 #include <random>
 #include <vector>
+#include <nlohmann/json.hpp>
+
+ANN::ANN(const std::string &path) {
+    this->load(path);
+}
 
 ANN::ANN(const int input_dim, const std::vector<int>& layers, const int output_dim) {
     this->layers_num = layers.size();
@@ -20,13 +25,13 @@ ANN::ANN(const int input_dim, const std::vector<int>& layers, const int output_d
     std::random_device rd;
     std::mt19937 gen(rd());
     for (auto i = 0; i <= layers_num; i++) {
-        int fout = i == layers_num ? output_dim : layers[i];
         int fin = i == 0 ? input_dim : layers[i - 1];
+        int fout = i == layers_num ? output_dim : layers[i];
         std::normal_distribution<> dis(0.0, sqrt(2.0 / (fin + fout)));
         arma::mat weight(fout, fin);
         weight.transform([&](double x) {
             return dis(gen);
-            });
+        });
 
         this->weights.push_back(weight);
     }
@@ -34,7 +39,7 @@ ANN::ANN(const int input_dim, const std::vector<int>& layers, const int output_d
 
 ANN::~ANN() {}
 
-double ANN::single_test(const TestPoint test_point) {
+double ANN::single_test(const TestPoint &test_point) {
     arma::vec z(test_point.input);
     for (auto i = 0; i < this->layers_num; i++) {
         z = this->weights[i] * z + this->biases[i];
@@ -47,7 +52,7 @@ double ANN::single_test(const TestPoint test_point) {
     double loss = 0.0;
     z.for_each([&loss](double x) {
         loss += x * x;
-        });
+    });
     return loss / 2.0;
 }
 
@@ -80,11 +85,27 @@ double ANN::train(const std::vector<TestPoint> &tps) {
 }
 
 void ANN::save(const std::string& path) {
-
+    nlohmann::json ret = {
+        { "layers_num", this->layers_num },
+        { "layers_sizes", this->layers_sizes },
+        { "weights", this->weights },
+        { "biases", this->biases }
+    };
+    std::ofstream ofs(path);
+    ofs << ret.dump(4);
+    ofs.close();
 }
 
-void ANN::load(const std::string& path) {
+void ANN::load(const std::string& path) { // Not Implemented
+    std::ifstream ifs(path);
+    nlohmann::json j = nlohmann::json::parse(ifs);
 
+    // this->layers_num = j["layers_num"];
+    // this->layers_sizes = j["layers_sizes"];
+    // this->weights = j["weights"];
+    // this->biases = j["biases"];
+
+    ifs.close();
 }
 
 void ANN::forward_propagation(std::vector<arma::vec>& z, std::vector<arma::vec>& a, const TestPoint& test_point) {

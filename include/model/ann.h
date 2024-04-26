@@ -5,10 +5,11 @@
 class ANN: public Model {
 
 public:
+    ANN(const std::string &path);
     ANN(const int input_dim, const std::vector<int> &layers, const int output_dim);
     ~ANN();
 
-    double single_test(const TestPoint test_point);
+    double single_test(const TestPoint &test_point);
     double train(const std::vector<TestPoint> &tps);
 
     void save(const std::string &path);
