@@ -29,7 +29,7 @@ if __name__ == "__main__":
     weight = [np.array(i) for i in data["weights"]]
     
     for i in range(layers_num + 1):
-        weight[i] = weight[i].reshape(layers_sizes[i+1], layers_sizes[i])
+        weight[i] = weight[i].reshape(layers_sizes[i], layers_sizes[i+1]).transpose()
     
     output = [[], [], [], []]
     for x in np.linspace(-1.0, 1.0, 100):
