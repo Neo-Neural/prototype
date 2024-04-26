@@ -12,7 +12,7 @@ int main() {
 
     ClassifierData test_data(ClassifierData::dimension_classifier, 4);
 
-    std::vector<int> hidden = {8, 12, 12, 12, 8};
+    std::vector<int> hidden = {8, 12, 24, 12, 8};
     ANN model(2, hidden, 4);
 
     train(model, train_data, 1000, test_data, 30, 500);

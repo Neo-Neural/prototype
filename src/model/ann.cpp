@@ -85,14 +85,14 @@ double ANN::train(const std::vector<TestPoint> &tps) {
 }
 
 void ANN::save(const std::string& path) {
-    nlohmann::json ret = {
+    nlohmann::json data = {
         { "layers_num", this->layers_num },
         { "layers_sizes", this->layers_sizes },
         { "weights", this->weights },
         { "biases", this->biases }
     };
     std::ofstream ofs(path);
-    ofs << ret.dump(4);
+    ofs << data.dump();
     ofs.close();
 }
 
