@@ -1,12 +1,13 @@
 #pragma once
 
 #include "model/model.h"
+#include "util/activation.h"
 
 class ANN: public Model {
 
 public:
     ANN(const std::string &path);
-    ANN(const int input_dim, const std::vector<int> &layers, const int output_dim);
+    ANN(const int input_dim, const std::vector<int> &layers, const int output_dim, ActivationType activate = RELU);
     ~ANN();
 
     double single_test(const TestPoint &test_point);
@@ -20,6 +21,7 @@ private:
     std::vector<int> layers_sizes;
     std::vector<arma::mat> weights; // weights[i] - weights between layers[i] and layers[i+1]
     std::vector<arma::vec> biases; // biases[i] - biases for layer[i+1]
+    ActivationType activate;
 
     const double alpha = 0.001; // learning rate
 

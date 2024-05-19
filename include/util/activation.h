@@ -1,13 +1,15 @@
 #pragma once
 
-namespace Activation {
-    double relu(double x);
-    double sigmoid(double x);
-    double tanh(double x);
-}
+#include <functional>
 
-namespace ActivationDifferential {
-    double relu(double x);
-    double sigmoid(double x);
-    double tanh(double x);
+enum ActivationType {
+    RELU,
+    SIGMOID,
+    TANH
 };
+
+typedef std::function<double(double)> Activation;
+
+Activation get_activation_function(ActivationType activation_function);
+
+Activation get_activation_derivative_function(ActivationType activation_function);

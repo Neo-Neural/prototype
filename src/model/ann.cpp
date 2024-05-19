@@ -11,7 +11,7 @@ ANN::ANN(const std::string &path) {
     this->load(path);
 }
 
-ANN::ANN(const int input_dim, const std::vector<int>& layers, const int output_dim) {
+ANN::ANN(const int input_dim, const std::vector<int> &layers, const int output_dim, ActivationType activate) {
     this->layers_num = layers.size();
     this->layers_sizes.assign(layers.begin(), layers.end());
 
@@ -35,18 +35,22 @@ ANN::ANN(const int input_dim, const std::vector<int>& layers, const int output_d
 
         this->weights.push_back(weight);
     }
+
+    this->activate = activate;
 }
 
 ANN::~ANN() {}
 
 double ANN::single_test(const TestPoint &test_point) {
     arma::vec z(test_point.input);
+
+    auto activation = get_activation_function(this->activate);
     for (auto i = 0; i < this->layers_num; i++) {
         z = this->weights[i] * z + this->biases[i];
-        z.transform(Activation::tanh);
+        z.transform(activation);
     }
     z = this->weights[this->layers_num] * z;
-    z.transform(Activation::tanh);
+    z.transform(activation);
     z = z - test_point.answer;
 
     double loss = 0.0;
@@ -109,28 +113,30 @@ void ANN::load(const std::string& path) { // Not Implemented
 }
 
 void ANN::forward_propagation(std::vector<arma::vec>& z, std::vector<arma::vec>& a, const TestPoint& test_point) {
+    auto activation = get_activation_function(this->activate);
     arma::vec current = test_point.input;
     a.push_back(current);
     for (auto i = 0; i < this->layers_num; i++) {
         current = this->weights[i] * current + this->biases[i];
         z.push_back(current);
-        current.transform(Activation::tanh);
+        current.transform(activation);
         a.push_back(current);
     }
     current = this->weights[this->layers_num] * current;
     z.push_back(current);
-    current.transform(Activation::tanh);
+    current.transform(activation);
     a.push_back(current);
 }
 
 void ANN::back_propagation(std::vector<arma::vec>& z, std::vector<arma::vec>& a, const TestPoint& test_point) {
+    auto activation_derivative = get_activation_derivative_function(this->activate);
     std::vector<arma::vec> delta; // delta[0] meaning the delta of the last layer
 
-    arma::vec activated_zl = z[z.size() - 1].transform(ActivationDifferential::tanh);
+    arma::vec activated_zl = z[z.size() - 1].transform(activation_derivative);
     delta.push_back((a[a.size() - 1] - test_point.answer) % activated_zl); // % element-wise multiplication
 
     for (auto i = this->layers_num - 1; i >= 0; i--) {
-        activated_zl = z[i].transform(ActivationDifferential::tanh);
+        activated_zl = z[i].transform(activation_derivative);
         delta.push_back((this->weights[i + 1].t() * delta[delta.size() - 1]) % activated_zl);
     }
 
