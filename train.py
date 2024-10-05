@@ -143,3 +143,166 @@ for epoch in range(num_epochs):
 
     avg_loss = epoch_loss / len(dataloader)
     print(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_loss:.4f}")
+    
+    
+def evaluate(individual):
+    """
+    individual: 图结构的编码（例如二进制向量表示是否存在边）
+    """
+    # 将个体转换为邻接矩阵
+    adj_vector = np.array(individual)
+    adj_matrix = torch.tensor(adj_vector, dtype=torch.float32).view(num_layers, num_nodes, num_nodes)
+
+    # 设置模型的邻接矩阵参数（需要格外注意梯度设置）
+    with torch.no_grad():
+        model.adj_matrix.copy_(adj_matrix)
+
+    # 计算训练损失
+    model.eval()
+    total_loss = 0.0
+    with torch.no_grad():
+        for batch_X, batch_Y in dataloader:
+            outputs = model(batch_X, edge_index_list)
+            loss = criterion(outputs, batch_Y)
+            total_loss += loss.item()
+
+    avg_loss = total_loss / len(dataloader)
+    return (avg_loss, )  # DEAP要求适应度返回元组
+  
+# 创建适应度和个体
+creator.create("FitnessMin", base.Fitness, weights=(-1.0, ))  # 最小化损失
+creator.create("Individual", list, fitness=creator.FitnessMin)
+
+toolbox = base.Toolbox()
+
+# 每个边是否存在的二进制编码
+num_edges_per_layer = num_nodes * num_nodes  # 每层图的边数
+toolbox.register("attr_bool", random.randint, 0, 1)
+toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_bool, n=num_layers * num_edges_per_layer)
+toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+
+toolbox.register("evaluate", evaluate)
+toolbox.register("mate", tools.cxUniform, indpb=0.5)
+toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
+toolbox.register("select", tools.selTournament, tournsize=3)
+
+population = toolbox.population(n=20)
+ngen = 5
+cxpb = 0.5  # 交叉概率
+mutpb = 0.2  # 变异概率
+
+for gen in range(ngen):
+    print(f"=== Generation {gen+1} ===")
+
+    # 选择
+    offspring = toolbox.select(population, len(population))
+    offspring = list(map(toolbox.clone, offspring))
+
+    # 交叉
+    for child1, child2 in zip(offspring[::2], offspring[1::2]):
+        if random.random() < cxpb:
+            toolbox.mate(child1, child2)
+            del child1.fitness.values
+            del child2.fitness.values
+
+    # 变异
+    for mutant in offspring:
+        if random.random() < mutpb:
+            toolbox.mutate(mutant)
+            del mutant.fitness.values
+
+    # 评估新个体
+    invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
+    if invalid_ind:
+        fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+        for ind, fit in zip(invalid_ind, fitnesses):
+            ind.fitness.values = fit
+
+    # 更新种群
+    population[:] = offspring
+
+    # 获取最佳个体
+    fits = [ind.fitness.values[0] for ind in population]
+    best = population[np.argmin(fits)]
+    print(f"Best Fitness: {min(fits):.4f}")
+    
+tasks = [
+    {"input_dim": 3, "output_dim": 2, "description": "Simple Binary Classification"},
+    {"input_dim": 3, "output_dim": 5, "description": "Multi-class Classification"},
+    # 可以继续添加更复杂的任务
+]
+
+for stage, task in enumerate(tasks):
+    print(f"\n=== Task Stage {stage+1}: {task['description']} ===")
+
+    # 更新模型的输入和输出维度
+    model.output_linear = nn.Linear(hidden_dim, task["output_dim"])
+
+    # 更新目标数据
+    Y = torch.randint(0, task["output_dim"], (num_samples, num_nodes))
+    Y = F.one_hot(Y, num_classes=task["output_dim"]).float()
+    dataset = TensorDataset(X, Y)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+    # 重新定义损失函数与优化器
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.01)
+
+    # 训练模型
+    for epoch in range(num_epochs):
+        model.train()
+        epoch_loss = 0.0
+        for batch_X, batch_Y in dataloader:
+            optimizer.zero_grad()
+            outputs = model(batch_X, edge_index_list)
+            loss = criterion(outputs, batch_Y)
+            loss.backward()
+            optimizer.step()
+            epoch_loss += loss.item()
+
+        avg_loss = epoch_loss / len(dataloader)
+        print(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_loss:.4f}")
+
+    # 优化图结构
+    population = toolbox.population(n=20)
+    ngen = 3  # 为每个任务阶段减少迭代次数
+    cxpb = 0.5
+    mutpb = 0.2
+
+    for gen in range(ngen):
+        print(f"-- Generation {gen+1} --")
+
+        offspring = toolbox.select(population, len(population))
+        offspring = list(map(toolbox.clone, offspring))
+
+        for child1, child2 in zip(offspring[::2], offspring[1::2]):
+            if random.random() < cxpb:
+                toolbox.mate(child1, child2)
+                del child1.fitness.values
+                del child2.fitness.values
+
+        for mutant in offspring:
+            if random.random() < mutpb:
+                toolbox.mutate(mutant)
+                del mutant.fitness.values
+
+        invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
+        if invalid_ind:
+            fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+            for ind, fit in zip(invalid_ind, fitnesses):
+                ind.fitness.values = fit
+
+        population[:] = offspring
+
+        fits = [ind.fitness.values[0] for ind in population]
+        best = population[np.argmin(fits)]
+        print(f"Best Fitness: {min(fits):.4f}")
+
+    # 获取并设置最佳个体
+    best_ind = tools.selBest(population, 1)[0]
+    adj_vector = np.array(best_ind)
+    adj_matrix = torch.tensor(adj_vector, dtype=torch.float32).view(num_layers, num_nodes, num_nodes)
+    with torch.no_grad():
+        model.adj_matrix.copy_(adj_matrix)
+
+    print(f"Updated Graph Structure for Task Stage {stage+1}")
