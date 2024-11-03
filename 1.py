@@ -2,10 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from torch_geometric.data import Data
 from torch_geometric.nn import MessagePassing
-from torch_geometric.utils import add_self_loops, to_dense_adj, dense_to_sparse
-import torch_geometric.transforms as T
 
 import numpy as np
 import random
@@ -13,11 +10,16 @@ import random
 # 用于进化算法的库
 from deap import base, creator, tools, algorithms
 
+# 可视化库
+import networkx as nx
+import matplotlib.pyplot as plt
+
 # 设置随机种子以确保结果可重复
 torch.manual_seed(42)
 np.random.seed(42)
 random.seed(42)
 
+# 定义有向消息传递层
 class DirectedMessagePassing(MessagePassing):
     def __init__(self, in_channels, out_channels):
         super(DirectedMessagePassing, self).__init__(aggr='add')  # 选择聚合方式
@@ -32,6 +34,7 @@ class DirectedMessagePassing(MessagePassing):
     def update(self, aggr_out):
         return aggr_out
 
+# 定义循环图神经网络模型
 class RecurrentGraphNetwork(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim, num_layers, num_time_steps):
         super(RecurrentGraphNetwork, self).__init__()
@@ -59,6 +62,7 @@ class RecurrentGraphNetwork(nn.Module):
         out = self.output_linear(hidden)
         return out
 
+# 创建示例有向图（包含环和自连接）
 def create_example_graph(num_nodes):
     edge_index = []
     for i in range(num_nodes):
@@ -66,6 +70,44 @@ def create_example_graph(num_nodes):
         edge_index.append([i, i])  # 自连接
     edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
     return edge_index
+
+# 可视化函数
+def plot_graph(edge_index, layer_num, num_nodes):
+    G = nx.DiGraph()
+    edges = edge_index.cpu().numpy().T.tolist()
+    G.add_edges_from(edges)
+
+    if G.number_of_edges() == 0:
+        for i in range(num_nodes):
+            G.add_edge(i, i)
+
+    pos = nx.spring_layout(G, seed=42)
+
+    plt.figure(figsize=(4, 4))
+    nx.draw_networkx_nodes(G, pos, node_color='lightblue', node_size=700)
+    nx.draw_networkx_edges(G, pos, arrowstyle='->', arrowsize=20, edge_color='gray')
+    nx.draw_networkx_labels(G, pos, font_size=12, font_weight='bold')
+
+    plt.title(f"Layer {layer_num + 1} Graph Structure")
+    plt.axis('off')
+    plt.show()
+
+def visualize_best_graph(best_ind, num_layers, num_nodes):
+    adj_vector = np.array(best_ind)
+    adj_matrix = adj_vector.reshape(num_layers, num_nodes, num_nodes)
+
+    for layer in range(num_layers):
+        edges = []
+        for i in range(num_nodes):
+            for j in range(num_nodes):
+                if adj_matrix[layer, i, j] > 0.5:
+                    edges.append([i, j])
+
+        if len(edges) == 0:
+            edges = [[i, i] for i in range(num_nodes)]
+
+        edge_index = torch.tensor(edges, dtype=torch.long).t().contiguous()
+        plot_graph(edge_index, layer, num_nodes)
 
 # 示例参数
 num_nodes = 5
@@ -75,7 +117,10 @@ output_dim = 2
 num_layers = 2
 num_time_steps = 10
 
+# 创建多个层的边索引（初始为环形连接）
 edge_index_list = [create_example_graph(num_nodes) for _ in range(num_layers)]
+
+# 创建模型实例
 model = RecurrentGraphNetwork(input_dim, hidden_dim, output_dim, num_layers, num_time_steps)
 print(model)
 
@@ -92,6 +137,7 @@ from torch.utils.data import TensorDataset, DataLoader
 dataset = TensorDataset(X, Y)
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
+# 定义损失函数与优化器
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.01)
 
@@ -110,14 +156,11 @@ for epoch in range(num_epochs):
         epoch_loss += loss.item()
 
     avg_loss = epoch_loss / len(dataloader)
-    print(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_loss:.4f}")
+    if (epoch + 1) % 10 == 0 or epoch == 0:
+        print(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_loss:.4f}")
 
-# 设置 DEAP
-
-def evaluate(individual, edge_index_template):
-    num_layers = num_layers_global
-    num_nodes = num_nodes_global
-
+# 定义适应度函数
+def evaluate(individual, edge_index_template, num_layers, num_nodes, model, dataloader, criterion):
     adj_vector = np.array(individual)
     adj_matrix = adj_vector.reshape(num_layers, num_nodes, num_nodes)
 
@@ -133,43 +176,47 @@ def evaluate(individual, edge_index_template):
         edge_index = torch.tensor(edges, dtype=torch.long).t().contiguous()
         new_edge_index_list.append(edge_index)
 
-    model_copy = RecurrentGraphNetwork(input_dim, hidden_dim, output_dim, num_layers, num_time_steps)
-    model_copy.load_state_dict(model.state_dict())
-
-    model_copy.eval()
+    # 使用模型进行前向传播并计算损失
+    model.eval()
     total_loss = 0.0
     with torch.no_grad():
         for batch_X, batch_Y in dataloader:
-            outputs = model_copy(batch_X, new_edge_index_list)
+            outputs = model(batch_X, new_edge_index_list)
             loss = criterion(outputs, batch_Y)
             total_loss += loss.item()
 
     avg_loss = total_loss / len(dataloader)
     return (avg_loss, )
 
-# 全局变量
+# 设置全球变量以便在 DEAP 中使用
 num_layers_global = num_layers
 num_nodes_global = num_nodes
 
-creator.create("FitnessMin", base.Fitness, weights=(-1.0, ))
+# 设置 DEAP 框架
+creator.create("FitnessMin", base.Fitness, weights=(-1.0, ))  # 最小化损失
 creator.create("Individual", list, fitness=creator.FitnessMin)
 
 toolbox = base.Toolbox()
+
+# 每个边是否存在的二进制编码
 num_edges_per_layer = num_nodes * num_nodes
 toolbox.register("attr_bool", random.randint, 0, 1)
 toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_bool, n=num_layers * num_edges_per_layer)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-toolbox.register("evaluate", evaluate, edge_index_template=edge_index_list)
+
+# 注册适应度函数
+toolbox.register("evaluate", evaluate, edge_index_template=edge_index_list,
+                 num_layers=num_layers_global, num_nodes=num_nodes_global,
+                 model=model, dataloader=dataloader, criterion=criterion)
 toolbox.register("mate", tools.cxUniform, indpb=0.5)
 toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
 toolbox.register("select", tools.selTournament, tournsize=3)
 
 # 进化过程
 population = toolbox.population(n=20)
-# ngen = 5
-ngen = 500
-cxpb = 0.5
-mutpb = 0.2
+ngen = 200
+cxpb = 0.5  # 交叉概率
+mutpb = 0.2  # 变异概率
 
 for gen in range(ngen):
     print(f"=== Generation {gen+1} ===")
@@ -177,25 +224,36 @@ for gen in range(ngen):
     offspring = toolbox.select(population, len(population))
     offspring = list(map(toolbox.clone, offspring))
 
+    # 交叉
     for child1, child2 in zip(offspring[::2], offspring[1::2]):
         if random.random() < cxpb:
             toolbox.mate(child1, child2)
             del child1.fitness.values
             del child2.fitness.values
 
+    # 变异
     for mutant in offspring:
         if random.random() < mutpb:
             toolbox.mutate(mutant)
             del mutant.fitness.values
 
+    # 评估新个体
     invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
     if invalid_ind:
         fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
         for ind, fit in zip(invalid_ind, fitnesses):
             ind.fitness.values = fit
 
+    # 更新种群
     population[:] = offspring
 
+    # 获取最佳个体
     fits = [ind.fitness.values[0] for ind in population]
     best = population[np.argmin(fits)]
     print(f"Best Fitness: {min(fits):.4f}")
+
+# 获取并可视化最佳个体
+best_ind = tools.selBest(population, 1)[0]
+print("最佳个体的编码：", best_ind)
+
+visualize_best_graph(best_ind, num_layers, num_nodes)
